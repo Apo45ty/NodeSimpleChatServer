@@ -1,0 +1,31 @@
+{
+  "name": "ChatServer",
+  "version": "0.0.1",
+  "description": "",
+  "main": "serverTest.js",
+  "dependencies": {
+    "express": "~3.4.8",
+    "logfmt": "~0.21.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "runChat"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Apo45ty/NodeSimpleChatServer.git"
+  },
+  "keywords": [
+    "chat"
+  ],
+  "author": "Antonio",
+  "license": "BDS",
+  "bugs": {
+    "url": "https://github.com/Apo45ty/NodeSimpleChatServer/issues"
+  },
+  {
+  "engines": {
+    "node": "0.10.0"
+  }
+}
+}
