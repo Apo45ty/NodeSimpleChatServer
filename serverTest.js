@@ -6,7 +6,7 @@ var port = Number(process.env.PORT || 5000);
 var WebSocketServer = require('ws').Server
 	, http = require('http');
 var rooms = {};
-var usersNotconnected [];
+var usersNotconnected = [];
 
 app.use(logfmt.requestLogger());
 app.use(express.static(__dirname + '/'));
@@ -16,7 +16,8 @@ app.use(express.static(__dirname + '/'));
  */
 function user(){
 	var socket;
-	this.name
+	this.name;
+	this.room;
 	function setSocket(nSocket){
 		socket = nSocket;
 	}
@@ -61,6 +62,7 @@ app.post('/chat/registerRoom', function(req, res){
 				var userObject = new user()
 				user.name = name;
 				user.push(name);
+				user.room = roomObj;
 				roomObj.users.push(user);
 				//do web socket stuff
 			} else {
@@ -117,7 +119,6 @@ wss.on('connection', function(ws) {
 	//wait for user name 
 	ws.on('message',function(message){
 		var messageObj = JSON.parse(message);
-		if()
 	});
     var id = setInterval(function() {
         ws.send(JSON.stringify(new Date()), function() { });
