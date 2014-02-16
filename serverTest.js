@@ -2,30 +2,37 @@
 var express = require("express");
 var logfmt = require("logfmt");
 var app = express();
-var port = Number(process.env.PORT || 5000);
+var port = Number(process.env.PORT || 5001);
 var WebSocketServer = require('ws').Server
 	, http = require('http');
 var rooms = {};
 var users = {};
-
+var appVer = "v1"; // app version
 app.use(logfmt.requestLogger());
 app.use(express.static(__dirname + '/'));
+app.use(express.bodyParser()); // parse POST request bodies
 
 /** 
  * user's prototype class
  */
-function user(){
+function User(){
 	var socket;
 	this.name;
-	this.room;
+	var room;
 	this.logined;
-	function setSocket(nSocket){
+	this.setSocket = function (nSocket){
 		if(nSocket == null) return;
 		socket = nSocket;
 		logined = true;
 	}
-	function getSocket(){
+	this.getSocket=function(){
 		return socket;
+	}
+	this.setRoom=function(newRoom){
+		room = newRoom;
+	}
+	this.getRoom= function(){
+		return room;
 	}
 }
 
@@ -41,10 +48,10 @@ for(var i=1;i<=20;i++){
 		"name":roomNames[(i-1)%roomNames.length]+Math.floor(((i-1)/roomNames.length)),
 		"users":new Array()
 	}
-	rooms[i+""]=room;
+	rooms[room.name]=room;
 }
 
-app.get('/chat/checkRoom', function(req, res){
+app.get("/"+appVer+'/chat/checkRoom', function(req, res){
 		var room =req.query.room;
 		debugger;
 		res.send(JSON.stringify(
@@ -62,34 +69,45 @@ app.get('/chat/checkRoom', function(req, res){
 		}));
 });
 
-app.post('/chat/registerRoom', function(req, res){
+app.post("/"+appVer+'/chat/registerUser', function(req, res){
 		debugger;
 		var room = req.body.room;
 		var username = req.body.name;
 		var roomObj = rooms[room];
 		if(roomObj){
 			if(roomObj.users.length<roomObj.maxSize){
-				var userObject = new user()
-				user.name = username;
-				user.room = roomObj;
-				roomObj.users.push(userObject);
-				roomObj.users[username] = userObject;
-				users[username] = userObject;
-				res.send(JSON.stringify(
-				{
-					"room":"Exists",
-					"name":room,
-					"numUsers": rooms[room].users.length,
-					"registeredAs":username,
-					"success": true
-				}));
-				//do web socket stuff
+				if(username){
+					var userObject = new User();
+					userObject.name = username;
+					userObject.setRoom(roomObj);
+					roomObj.users.push(userObject);
+					roomObj.users[username] = userObject;
+					users[username] = userObject;
+					res.send(JSON.stringify(
+					{
+						"room":"Exists",
+						"name":room,
+						"numUsers": roomObj.users.length,
+						"description":"registered as "+username,
+						"success": true
+					}));
+					//do web socket stuff
+				} else {
+					res.send(JSON.stringify(
+					{
+						"room":"Exists",
+						"name":room,
+						"numUsers": roomObj.users.length,
+						"description":"No username, user can't be registered.",
+						"success": false
+					}));
+				}
 			} else {
 				res.send(JSON.stringify(
 				{
-					"room":"Exists",
+					"room":"DoesNotExist.",
 					"name":room,
-					"numUsers": rooms[room].users.length,
+					"numUsers": roomObj.users.length,
 					"success": false
 				}));
 			}
@@ -97,9 +115,10 @@ app.post('/chat/registerRoom', function(req, res){
 		
 });
 
-app.post('/chat/unregisterRoom', function(req, res){
+app.post("/"+appVer+'/chat/unregisterUser', function(req, res){
+		debugger;
 		var room = req.body.room;
-		var username = req.body.username;
+		var username = req.body.name;
 		var roomObj = rooms[room];
 		if(roomObj){
 			var userObj = roomObj.users[username];
@@ -142,7 +161,7 @@ app.post('/chat/unregisterRoom', function(req, res){
 		}
 });
 
-app.get('/chat', function(req, res){
+app.get("/"+appVer+'/chat', function(req, res){
 	res.send(JSON.stringify(rooms));
 });
 
@@ -167,14 +186,16 @@ wss.on('connection', function(ws) {
 				if(!user.logined){
 					user.logined = true;
 					user.setSocket(ws);
-				} else {
-					var roomObj = user.room;
-					for(user in roomObj.users){
-						user.getSocket().send(
-							message
-						,function(){});
-					}
+				} 
+				
+				var roomObj = user.getRoom();
+				for(tUser in roomObj.users){
+					if(user == tUser) continue; // dont send it to himself
+					user.getSocket().send(
+						message
+					,function(){});
 				}
+			
 			} else {
 				ws.send(JSON.stringigy({
 					"success":false,
