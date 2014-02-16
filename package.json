@@ -23,9 +23,7 @@
   "bugs": {
     "url": "https://github.com/Apo45ty/NodeSimpleChatServer/issues"
   },
-  {
   "engines": {
-    "node": "0.10.0"
+	"node": "0.10.0"
   }
-}
 }
