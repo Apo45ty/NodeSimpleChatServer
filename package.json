@@ -5,7 +5,8 @@
   "main": "serverTest.js",
   "dependencies": {
     "express": "~3.4.8",
-    "logfmt": "~0.21.0"
+    "logfmt": "~0.21.0",
+    "ws": "~0.4.31"
   },
   "devDependencies": {},
   "scripts": {
@@ -24,6 +25,6 @@
     "url": "https://github.com/Apo45ty/NodeSimpleChatServer/issues"
   },
   "engines": {
-	"node": "0.10.0"
+    "node": "0.10.0"
   }
 }
