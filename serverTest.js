@@ -6,7 +6,7 @@ var port = Number(process.env.PORT || 5001);
 var WebSocketServer = require('ws').Server
 	, http = require('http');
 var rooms = {};
-var users = {};
+var users = [];
 var appVer = "v1"; // app version
 app.use(logfmt.requestLogger());
 app.use(express.static(__dirname + '/'));
@@ -91,21 +91,33 @@ app.post("/"+appVer+'/chat/registerUser', function(req, res){
 		if(roomObj){
 			if(roomObj.users.length<roomObj.maxSize){
 				if(username){
-					var userObject = new User();
-					userObject.name = username;
-					userObject.setRoom(roomObj);
-					roomObj.users.push(userObject);
-					roomObj.users[username] = userObject;
-					users[username] = userObject;
+					if(!users[username]){//username is unique
+						var userObject = new User();
+						userObject.name = username;
+						userObject.setRoom(roomObj);
+						
+						roomObj.users.push(userObject);
+						roomObj.users[username] = userObject;
+						users[username] = userObject;
+						users.push(userObject);
+						res.send(JSON.stringify(
+						{
+							"room":"Exists",
+							"name":room,
+							"numUsers": roomObj.users.length,
+							"description":"registered as "+username,
+							"success": true
+						}));
+					} else {
 					res.send(JSON.stringify(
 					{
 						"room":"Exists",
 						"name":room,
 						"numUsers": roomObj.users.length,
-						"description":"registered as "+username,
-						"success": true
+						"description":"Username in use, user can't be registered.",
+						"success": false
 					}));
-					//do web socket stuff
+					}
 				} else {
 					res.send(JSON.stringify(
 					{
@@ -151,6 +163,7 @@ app.post("/"+appVer+'/chat/unregisterUser', function(req, res){
 				userObj.logined = false; // really dont matter
 				roomObj.users[username] = null
 				users[username] = null;
+				users.splice(roomObj.users.indexOf(userObj),1);
 				roomObj.users.splice(roomObj.users.indexOf(userObj),1); // remove user
 				
 				res.send(JSON.stringify(
@@ -200,6 +213,7 @@ var wss = new WebSocketServer({server: server});
 console.log('websocket server created');
 
 wss.broadcast = function(roomObj,user,message){
+	debugger;
 	for(var i=0;i<roomObj.users.length;i++){
 		var tUser = users[i];
 		if(user == tUser) continue; // don't send it to himself
@@ -212,8 +226,18 @@ wss.broadcast = function(roomObj,user,message){
 wss.on('connection', function(ws) {
 	//wait for user name 
 	debugger;
+	var closeRefs = {};
 	ws.on('close', function() {
-		console.log('websocket connection close');
+		debugger;
+		try{
+			wss.broadcast(closeRefs.roomObj,closeRefs.user,JSON.stringify({
+				"name":closeRefs.user.name,
+				"left":true
+			}),function(){});
+			console.log('Closed socket:' + closeRefs.user);
+		}catch(exception){
+			console.log("Someone disconnected"+exception);
+		}
 	});
 	ws.on('message',function(message){
 		debugger;
@@ -226,19 +250,25 @@ wss.on('connection', function(ws) {
 				var roomObj = user.getRoom();
 				
 				if(!user.logined){
+					console.log("User "+messageObj.name+" connected.")
 					user.logined = true;
 					user.setSocket(ws);
 					messageObj['loggedIn'] = true;
 					wss.broadcast(roomObj,user,JSON.stringify(messageObj));
-					ws.on('close', function() {
-						wss.broadcast(roomObj,user,JSON.stringify({
-							"name":user.name,
-							"left":true
-						}));
-					});
-				} 
+					closeRefs.roomObj = roomObj;
+					closeRefs.user = user;
+				} else {
 				
-				wss.broadcast(roomObj,user,message);
+					wss.broadcast(roomObj,user,message);
+				}
+				
+				//Acknowledge user message received
+				if(messageObj.acknowledge){
+					user.getSocket().send(JSON.stringify({
+						"success":true,
+						"acknowledgement":true
+					}));
+				}
 			} else {
 				ws.send(JSON.stringify({
 					"success":false,
@@ -247,14 +277,14 @@ wss.on('connection', function(ws) {
 				ws.close();
 			}
 			
-		} catch(exeception){
+		} catch(exception){
 			ws.send(JSON.stringify({
 				"success":false,
-				"description":"Malformed JSON!"
+				"description":"Malformed JSON!"+exception
 			}));
 			ws.close();
 		}
 	});
 
-    console.log('websocket connection open');
+    console.log('Connection Detected');
 });
