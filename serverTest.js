@@ -199,37 +199,46 @@ console.log('http server listening on %d', port);
 var wss = new WebSocketServer({server: server});
 console.log('websocket server created');
 
-
+wss.broadcast = function(roomObj,user,message){
+	for(var i=0;i<roomObj.users.length;i++){
+		var tUser = users[i];
+		if(user == tUser) continue; // don't send it to himself
+		tUser.getSocket().send(
+			message
+		,function(){});
+	}
+}
 
 wss.on('connection', function(ws) {
 	//wait for user name 
 	debugger;
+	ws.on('close', function() {
+		console.log('websocket connection close');
+	});
 	ws.on('message',function(message){
 		debugger;
+		console.log("message send "+message);
 		try{
 			console.log("Messaged received"+message);
 			var messageObj = JSON.parse(message);
 			var user = users[messageObj.name];
 			if(user){
+				var roomObj = user.getRoom();
+				
 				if(!user.logined){
 					user.logined = true;
 					user.setSocket(ws);
+					messageObj['loggedIn'] = true;
+					wss.broadcast(roomObj,user,JSON.stringify(messageObj));
+					ws.on('close', function() {
+						wss.broadcast(roomObj,user,JSON.stringify({
+							"name":user.name,
+							"left":true
+						}));
+					});
 				} 
 				
-				var roomObj = user.getRoom();
-				for(var i=0;i<roomObj.users.length;i++){
-					var tUser = users[i];
-					if(user == tUser) continue; // don't send it to himself
-					tUser.getSocket().send(
-						message
-					,function(){});
-				}
-				
-				
-				ws.on('close', function() {
-					console.log('websocket connection close');
-				});
-			
+				wss.broadcast(roomObj,user,message);
 			} else {
 				ws.send(JSON.stringify({
 					"success":false,
