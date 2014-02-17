@@ -53,6 +53,9 @@ for(var i=1;i<=20;i++){
 
 app.get("/"+appVer+'/chat/checkRoom', function(req, res){
 		var room =req.query.room;
+		if(room.length > 10){
+			room = room.substring(0,10);
+		}
 		debugger;
 		res.send(JSON.stringify(
 		{
@@ -73,6 +76,17 @@ app.post("/"+appVer+'/chat/registerUser', function(req, res){
 		debugger;
 		var room = req.body.room;
 		var username = req.body.name;
+		
+		//Check the input to be clean
+		if(room.length > 10){
+			room = room.substring(0,10);
+		}
+		
+		//Check the input to be clean
+		if(username.length > 10){
+			username = username.substring(0,10);
+		}
+		
 		var roomObj = rooms[room];
 		if(roomObj){
 			if(roomObj.users.length<roomObj.maxSize){
@@ -119,10 +133,22 @@ app.post("/"+appVer+'/chat/unregisterUser', function(req, res){
 		debugger;
 		var room = req.body.room;
 		var username = req.body.name;
+		
+		//Check the input to be clean
+		if(room.length > 10){
+			room = room.substring(0,10);
+		}
+		
+		//Check the input to be clean
+		if(username.length > 10){
+			username = username.substring(0,10);
+		}
+		
 		var roomObj = rooms[room];
 		if(roomObj){
 			var userObj = roomObj.users[username];
 			if(userObj){
+				userObj.logined = false; // really dont matter
 				roomObj.users[username] = null
 				users[username] = null;
 				roomObj.users.splice(roomObj.users.indexOf(userObj),1); // remove user
@@ -177,7 +203,9 @@ console.log('websocket server created');
 
 wss.on('connection', function(ws) {
 	//wait for user name 
+	debugger;
 	ws.on('message',function(message){
+		debugger;
 		try{
 			console.log("Messaged received"+message);
 			var messageObj = JSON.parse(message);
@@ -189,35 +217,35 @@ wss.on('connection', function(ws) {
 				} 
 				
 				var roomObj = user.getRoom();
-				for(tUser in roomObj.users){
-					if(user == tUser) continue; // dont send it to himself
-					user.getSocket().send(
+				for(var i=0;i<roomObj.users.length;i++){
+					var tUser = users[i];
+					if(user == tUser) continue; // don't send it to himself
+					tUser.getSocket().send(
 						message
 					,function(){});
 				}
+				
+				
+				ws.on('close', function() {
+					console.log('websocket connection close');
+				});
 			
 			} else {
-				ws.send(JSON.stringigy({
+				ws.send(JSON.stringify({
 					"success":false,
-					"description":"User not registered"
+					"description":"User not registered."
 				}));
+				ws.close();
 			}
 			
 		} catch(exeception){
-			ws.send(JSON.stringigy({
+			ws.send(JSON.stringify({
 				"success":false,
 				"description":"Malformed JSON!"
 			}));
+			ws.close();
 		}
 	});
-    var id = setInterval(function() {
-        ws.send(JSON.stringify(new Date()), function() { });
-    }, 1000);
 
     console.log('websocket connection open');
-
-    ws.on('close', function() {
-        console.log('websocket connection close');
-        clearInterval(id);
-    });
 });

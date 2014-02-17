@@ -25,6 +25,20 @@
         li.innerHTML = JSON.parse(event.data);
         document.querySelector('#pings').appendChild(li);
       };
+	  ws.send(JSON.stringify({
+			"name":"pedro",
+			"room":"b/0"
+	  }));
+	  var id = setInterval(function(){
+		ws.send(JSON.stringify({
+			"name":"pedro",
+			"room":"b/0",
+			"message":"Hey, sup?"
+		}));
+	  },1000);
+	  ws.onclose = function(event){
+		clearInterval(id);
+	  }
     </script>
   </head>
   <body>
